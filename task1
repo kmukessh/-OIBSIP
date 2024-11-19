@@ -1,0 +1,173 @@
+import java.sql.*;
+import java.util.Scanner;
+import java.util.Random;
+
+public class MukeshReservationSystem {
+    private static final int MIN_PNR = 1000;
+    private static final int MAX_PNR = 9999;
+
+    public static class User {
+        private String username;
+        private String password;
+
+        Scanner scanner = new Scanner(System.in);
+
+        public User() {}
+
+        public String getUsername() {
+            System.out.print("Enter Username: ");
+            username = scanner.nextLine();
+            return username;
+        }
+
+        public String getPassword() {
+            System.out.print("Enter Password: ");
+            password = scanner.nextLine();
+            return password;
+        }
+    }
+
+    public static class PnrRecord {
+        private int pnrNumber;
+        private String passengerName;
+        private String trainNumber;
+        private String classType;
+        private String journeyDate;
+        private String from;
+        private String to;
+
+        Scanner scanner = new Scanner(System.in);
+
+        public int generatePnrNumber() {
+            Random random = new Random();
+            pnrNumber = random.nextInt(MAX_PNR - MIN_PNR + 1) + MIN_PNR;
+            return pnrNumber;
+        }
+
+        public String getPassengerName() {
+            System.out.print("Enter Passenger Name: ");
+            passengerName = scanner.nextLine();
+            return passengerName;
+        }
+
+        public String getTrainNumber() {
+            System.out.print("Enter Train Number: ");
+            trainNumber = scanner.nextLine();
+            return trainNumber;
+        }
+
+        public String getClassType() {
+            System.out.print("Enter Class Type: ");
+            classType = scanner.nextLine();
+            return classType;
+        }
+
+        public String getJourneyDate() {
+            System.out.print("Enter Journey Date (YYYY-MM-DD): ");
+            journeyDate = scanner.nextLine();
+            return journeyDate;
+        }
+
+        public String getFromLocation() {
+            System.out.print("Enter Departure Location: ");
+            from = scanner.nextLine();
+            return from;
+        }
+
+        public String getToLocation() {
+            System.out.print("Enter Destination Location: ");
+            to = scanner.nextLine();
+            return to;
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        User user = new User();
+        String username = user.getUsername();
+        String password = user.getPassword();
+
+        String url = "jdbc:mysql://localhost:3306/MukeshReservations";
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            try (Connection connection = DriverManager.getConnection(url, username, password)) {
+                System.out.println("Connection established successfully.\n");
+
+                while (true) {
+                    System.out.println("Choose an option:");
+                    System.out.println("1. Insert New Reservation");
+                    System.out.println("2. Cancel Reservation");
+                    System.out.println("3. Display All Reservations");
+                    System.out.println("4. Exit");
+                    int choice = scanner.nextInt();
+
+                    if (choice == 1) {
+                        PnrRecord record = new PnrRecord();
+                        int pnrNumber = record.generatePnrNumber();
+                        String passengerName = record.getPassengerName();
+                        String trainNumber = record.getTrainNumber();
+                        String classType = record.getClassType();
+                        String journeyDate = record.getJourneyDate();
+                        String from = record.getFromLocation();
+                        String to = record.getToLocation();
+
+                        String insertQuery = "INSERT INTO reservations (pnr_number, passenger_name, train_number, class_type, journey_date, from_location, to_location) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                        try (PreparedStatement preparedStatement = connection.prepareStatement(insertQuery)) {
+                            preparedStatement.setInt(1, pnrNumber);
+                            preparedStatement.setString(2, passengerName);
+                            preparedStatement.setString(3, trainNumber);
+                            preparedStatement.setString(4, classType);
+                            preparedStatement.setString(5, journeyDate);
+                            preparedStatement.setString(6, from);
+                            preparedStatement.setString(7, to);
+
+                            int rowsAffected = preparedStatement.executeUpdate();
+                            System.out.println(rowsAffected > 0 ? "Reservation added successfully!" : "Failed to add reservation.");
+                        }
+
+                    } else if (choice == 2) {
+                        System.out.print("Enter PNR Number to cancel reservation: ");
+                        int pnrNumber = scanner.nextInt();
+                        String deleteQuery = "DELETE FROM reservations WHERE pnr_number = ?";
+                        try (PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery)) {
+                            preparedStatement.setInt(1, pnrNumber);
+                            int rowsAffected = preparedStatement.executeUpdate();
+                            System.out.println(rowsAffected > 0 ? "Reservation cancelled successfully!" : "No reservation found with that PNR.");
+                        }
+
+                    } else if (choice == 3) {
+                        String selectQuery = "SELECT * FROM reservations";
+                        try (PreparedStatement preparedStatement = connection.prepareStatement(selectQuery);
+                             ResultSet resultSet = preparedStatement.executeQuery()) {
+
+                            System.out.println("Current Reservations:");
+                            while (resultSet.next()) {
+                                System.out.println("PNR Number: " + resultSet.getInt("pnr_number"));
+                                System.out.println("Passenger Name: " + resultSet.getString("passenger_name"));
+                                System.out.println("Train Number: " + resultSet.getString("train_number"));
+                                System.out.println("Class Type: " + resultSet.getString("class_type"));
+                                System.out.println("Journey Date: " + resultSet.getDate("journey_date"));
+                                System.out.println("From: " + resultSet.getString("from_location"));
+                                System.out.println("To: " + resultSet.getString("to_location"));
+                                System.out.println("-------------");
+                            }
+                        }
+
+                    } else if (choice == 4) {
+                        System.out.println("Exiting the program.");
+                        break;
+                    } else {
+                        System.out.println("Invalid choice, please try again.");
+                    }
+                }
+            }
+
+        } catch (ClassNotFoundException e) {
+            System.out.println("MySQL JDBC Driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        }
+        scanner.close();
+    }
+}
